@@ -13,7 +13,7 @@ Chris Oh
     -   [Outlier score computation](#outlier-score-computation)
     -   [Visualizing the results](#visualizing-the-results)
 -   [Possible Application](#possible-application)
--   [Challenges](#challenges)
+-   [Challenges / Ideas](#challenges-ideas)
     -   [Model parameters](#model-parameters)
     -   [Defining outliers](#defining-outliers)
 
@@ -28,9 +28,13 @@ Motivation
 
 As a part of a series called *Medicare Unmasked*, which won Pulitzer Prize for Investigative Reportings, the journalists at Wall Stree Journal (WSJ) explored unusual doctor billings [*Taxpayers Face Big Tab For Unusual Doctor Billings*](http://www.pulitzer.org/files/2015/investigative-reporting/wsjmedicare/01wsjmedicare2015.pdf), 2014 Jun 10.
 
-As part of a project for Stanford's Data Challenge Lab, I previously explored unusual billings by picking out key variables and creating new ones from which subsetting criteria were created manually.
+As a part of a project for Stanford's Data Challenge Lab, I previously explored unusual billings by picking out key variables and creating new ones from which subsetting criteria were created manually.
 
-The goal of this project is to use unsuprvised anomaly detection algorithms to expedite the process without relying on arbitrary thresholds. This would also have an advantage in terms of scalability.
+The goal of this project is to use unsuprvised anomaly detection algorithms to:
+
+-   Expedite the process without relying on arbitrary thresholds.
+-   Better detect higher-dimensional outliers (2D and above).
+-   Establishing a standard that is highly scalable.
 
 Data
 ----
@@ -47,7 +51,7 @@ The billing data is publicly available from the US government agency that overse
 
 The raw detailed data is available in a .txt format and contains more than 9 million observations.
 
-To converting the raw data into a workable .rds format, an R script was runparately.
+To convert the raw data into a workable .rds format, an R script was run separately.
 
 The processed file is read in as `medicare`.
 
@@ -62,23 +66,23 @@ This part of the section is masked from public viewing for confidentiality purpo
 Below are some of the steps taken:
 
 -   Check for NA's and investigate the reasons for the missing values.
--   Check for duplicates
--   Check for distribution of variables (credentials, provider types)
+-   Check for duplicates.
+-   Check for distribution of variables (credentials, provider types).
 
 Local Density-Based Outlier Detection
 -------------------------------------
 
 Local density-based outlier detection (`ldbod`) uses the k-nearest-neighbor approach to computing the outlier scores for given observations.
 
-The `ldbod` package allows the user to accomodate for different sizes of `k` as well as different density-based methods (by default, all 4 available methods are used).
+The `ldbod` package allows the user to accomodate for different sizes of `k` as well as different density-based methods (by default, all 4 available methods -- LOF, LDF, RKOF, LPDF -- are used).
 
-It also allows for a random subsampling of the input data.
+It also allows for a random subsampling of the input data, which in this case, was deemed unneccesary given the size of each `HCPCS_CODE` (procedure / medication) group as we will see in a later section.
 
 ### Data prepartion
 
-First, we have to subset the data by numeric variables and those without any missing values.
+We have to subset the data by numeric variables and those without any missing values to run the detection algorithm.
 
-Then, I pick out only the relevant variables over which outlier scores should be computed.
+Among these, I pick out the relevant variables over which outlier scores should be computed.
 
 ``` r
 medicare_num <-
@@ -101,7 +105,7 @@ medicare_num %>%
 | 1003000126 | 99222       |              115|                112|                   115|                            199|                         108.1157|
 | 1003000126 | 99223       |               93|                 88|                    93|                            291|                         158.8700|
 
-What we need to do now is to get a nested dataset of `medicare_num` by `HCPCS_CODE` so that we can run the outlier score calculation algorithm within each procedure / product.
+Now, we need a nested dataset of `medicare_num` by `HCPCS_CODE` so that we can run the outlier score calculation algorithm within each `HCPCS_CODE`.
 
 Before doing so, let us look at the distribution of the number of data points in each `HCPCS_CODE`.
 
@@ -117,7 +121,7 @@ medicare_num %>%
 
 ![](medicare_anomaly_detection_files/figure-markdown_github/unnamed-chunk-5-1.png)
 
-As can be seen, there are many products / services that have less than 100 instances in the dataset.
+Many products / services have less than 100 instances in the dataset.
 
 These in themselves are outliers and would certainly warrant a closer inspection.
 
@@ -126,7 +130,7 @@ However, they are deemed unfit for the type of outier detection we are after her
 ``` r
 medicare_num %>% 
   group_by(HCPCS_CODE) %>%
-  filter(n() > 50) %>% 
+  filter(n() > 100) %>% 
   head() %>%
   knitr::kable()
 ```
@@ -142,7 +146,7 @@ medicare_num %>%
 
 Now, we can proceed to nest the dataset by `HCPCS_CODE`.
 
-\*Note: Below is a sample workflow that could be eventually applied to the entire dataset. Due to a large memeory requirement, the full job cannot be run on a local machine. This issue can be overcome by submitting a batch request to SLURM (through Stanford, in my case, where a script can be run on a machine with much higher memory capacity).
+\*Note: Below is a sample workflow that could be eventually applied to the entire dataset. Due to a large memeory requirement, the full job cannot be run on a local machine. This issue can be overcome by submitting a batch request to SLURM (through Stanford, in my case, where a script can be run on a machine with much higher memory capacity). To apply the algorithm to the entire dataset, one can simply take out the `filter` line.
 
 Below, I randomly picked two different `HCPCS_CODE`s to illustrate how the outlier scores could be applied to each nested dataset.
 
@@ -158,11 +162,11 @@ medi_test <-
 
 Score calculation steps:
 
--   Apply `ldbod` to the nested dataset for each `HCPCS_CODE`
--   The `k` parameter passed to `ldbod` should depend on the number of datapoints in each of these nested datasets.
+-   Apply `ldbod` to the nested dataset for each `HCPCS_CODE`.
+-   The `k` parameter passed to `ldbod` should be adjusted based on the number of datapoints in each of these nested datasets.
 -   `NPI` should not be passed on to the `ldbod`.
--   All 4 available methods (LOF, LDF, RKOF, LPDF) are used to comput the outlier scores (default).
--   The computed scores (a total of 9) are attached to the original nested datasets.
+-   All 4 available methods (LOF, LDF, RKOF, and LPDF) are used to comput the outlier scores (default).
+-   The a total of 9 different scores are computed and added to each original nested dataset.
 
 ``` r
 apply_ldbod <- function(df) {
@@ -190,8 +194,8 @@ medi_test <-
 
 The two most relevant variables for outlier detection are:
 
--   `LINE_SRVC_CNT` - for practitioners with excessively frequent treatments
--   `AVERAGE_SUBMITTED_CHRG_AMT` - for practioners who might be over-billing
+-   `LINE_SRVC_CNT` - for practitioners with excessively high number of treatments
+-   `AVERAGE_SUBMITTED_CHRG_AMT` - for practioners who might be over-billing for the treatment category compared to others
 
 The plots below show the top 30 outliers, 5 of which are labelled, as indicated by:
 
@@ -200,6 +204,8 @@ The plots below show the top 30 outliers, 5 of which are labelled, as indicated 
 
 ``` r
 # Get all the variables in the original dataset
+# Not that each row is distinct for each practitioner (NPI)
+# / procedure (HCPCS_CODE)
 medi_test <-
   medi_test %>% 
   unnest() %>% 
@@ -212,7 +218,19 @@ As can be seen, the algorithms seemed to have done a fairly good job of identify
 ``` r
 # Labelling for top outliers
 label_outlier <- function(f_name, l_o_name) {
+  # If an NPI belongs to an organization, the organization name will be returned.
+  # If an NPI belongs to an individual, the full name will be returned.
   ifelse(is.na(f_name), l_o_name, str_c(f_name, " ", l_o_name))
+}
+
+# Get the top entries based on a given metric for a particular
+# subset of a dataset
+get_top_n <- function(df, filter_var, which, number, wght) {
+  filter_var <- enquo(filter_var)
+  wght <- enquo(wght)
+  df %>% 
+    filter(UQ(filter_var) %in% which) %>%
+    top_n(n = number, wt = !! wght)
 }
 
 medi_test %>% 
@@ -221,10 +239,7 @@ medi_test %>%
   geom_point(alpha = .03) +
   geom_point(
     color = "red",
-    data = 
-      medi_test %>% 
-      filter(HCPCS_CODE %in% "51741") %>%
-      top_n(-30, wt = lpde)
+    data = medi_test %>% get_top_n(HCPCS_CODE, "51741", -30, lpde)
   ) +
   ggrepel::geom_text_repel(
     aes(
@@ -235,10 +250,7 @@ medi_test %>%
     size = 3,
     point.padding = .8,
     segment.size = .3,
-    data = 
-      medi_test %>% 
-      filter(HCPCS_CODE %in% "51741") %>%
-      top_n(-5, wt = lpde)
+    data = medi_test %>% get_top_n(HCPCS_CODE, "51741", -5, lpde)
   ) +
   labs(
     title =
@@ -248,6 +260,7 @@ medi_test %>%
               pull(HCPCS_DESCRIPTION) %>% 
               unique()
             ),
+    subtitle = "Top 5 are labelled",
     x = "Number of services provided",
     y = "Average medicare payment amount"
   ) +
@@ -263,21 +276,7 @@ medi_test %>%
   geom_point(alpha = .03) +
   geom_point(
     color = "red",
-    data = 
-      medi_test %>% 
-      filter(HCPCS_CODE %in% "10060") %>%
-      top_n(30, wt = rkof)
-  ) +
-  labs(
-    title =
-      str_c("Top 30 outliers for providers in ", 
-             medi_test %>% 
-              filter(HCPCS_CODE %in% "10060") %>%
-              pull(HCPCS_DESCRIPTION) %>% 
-              unique()
-            ),
-    x = "Number of services provided",
-    y = "Average medicare payment amount"
+    data = medi_test %>% get_top_n(HCPCS_CODE, "10060", 30, rkof)
   ) +
   ggrepel::geom_text_repel(
     aes(
@@ -288,10 +287,7 @@ medi_test %>%
     size = 3,
     point.padding = .8,
     segment.size = .3,
-    data = 
-      medi_test %>% 
-      filter(HCPCS_CODE %in% "10060") %>%
-      top_n(5, wt = rkof)
+    data = medi_test %>% get_top_n(HCPCS_CODE, "10060", 5, rkof)
   ) +
   labs(
     title =
@@ -301,6 +297,7 @@ medi_test %>%
               pull(HCPCS_DESCRIPTION) %>% 
               unique()
             ),
+    subtitle = "Top 5 are labelled",
     x = "Number of services provided",
     y = "Average medicare payment amount"
   ) +
@@ -318,8 +315,8 @@ Similarly, we can also build a classifier with the exisitng body of data when a 
 
 This can be achieved by computing the outlier scores based on the existing data then applying them on the new data points. `ldbod.ref` function can be employed for this purpose.
 
-Challenges
-----------
+Challenges / Ideas
+------------------
 
 ### Model parameters
 
@@ -338,3 +335,5 @@ For the purpose of fraud / abuse detection in the billings record, it might be a
 However, a record that is very low in terms of one variable might be very high in another.
 
 In this sense, it may be appropriate to filter out only the observations that have low numbers across all values before computing the outlier scores.
+
+For example, in this dataset, there is a varaible that denotes the average amount for each `HCPCS_CODE`, which could serve as a threshold for this purpose.

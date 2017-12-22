@@ -25,3 +25,11 @@ Local density-based outlier scores
 
 - Outlier detection on the current records.
 - Building a classifier for future stream of billing records.
+
+### To Do
+
+* Scale it up to the full dataset
+    + Save the processed dataset to a separate file.
+    + Write a script for the processing (use the existing code).
+    + Write a batch script file to run on SLURM.
+    + Submit the batch request (through Stanford Wheat - large memeory node).
