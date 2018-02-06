@@ -12,6 +12,8 @@ Chris Oh
     -   [Data prepartion](#data-prepartion)
     -   [Outlier score computation](#outlier-score-computation)
     -   [Visualizing the results](#visualizing-the-results)
+        -   [Visualization by different scores (highest to lowest)](#visualization-by-different-scores-highest-to-lowest)
+        -   [By the two most relevant variables](#by-the-two-most-relevant-variables)
 -   [Possible Application](#possible-application)
 -   [Challenges / Ideas](#challenges-ideas)
     -   [Model parameters](#model-parameters)
@@ -21,6 +23,8 @@ Chris Oh
 # Libraries
 library(tidyverse)
 library(ldbod)
+library(knitr)
+library(ggrepel)
 ```
 
 Motivation
@@ -182,7 +186,7 @@ apply_ldbod <- function(df) {
   # attach the comuted scores
   df <-
     df %>% 
-    cbind(map_df(scores, as.integer))
+    cbind(map_df(scores, as.numeric))
 }
 
 medi_test <-
@@ -192,20 +196,12 @@ medi_test <-
 
 ### Visualizing the results
 
-The two most relevant variables for outlier detection are:
-
--   `LINE_SRVC_CNT` - for practitioners with excessively high number of treatments
--   `AVERAGE_SUBMITTED_CHRG_AMT` - for practioners who might be over-billing for the treatment category compared to others
-
-The plots below show the top 30 outliers, 5 of which are labelled, as indicated by:
-
--   local parametric density estimate (LPDE) - for `HCPCS_CODE` 51741
--   robust kernel density factor (RKOF) - for `HCPCS_CODE` 10060
+Now that we have computed the 9 different outlier scores within each `HCPCS_CODE` group, let's visualize some of the results.
 
 ``` r
 # Get all the variables in the original dataset
-# Not that each row is distinct for each practitioner (NPI)
-# / procedure (HCPCS_CODE)
+# Note that each row is distinct for each practitioner (NPI) and
+# procedure (HCPCS_CODE)
 medi_test <-
   medi_test %>% 
   unnest() %>% 
@@ -213,7 +209,7 @@ medi_test <-
   left_join(medicare, by = c("NPI", "HCPCS_CODE"))
 ```
 
-As can be seen, the algorithms seemed to have done a fairly good job of identifying the outliers.
+#### Visualization by different scores (highest to lowest)
 
 ``` r
 # Labelling for top outliers
@@ -232,7 +228,63 @@ get_top_n <- function(df, filter_var, which, number, wght) {
     filter(UQ(filter_var) %in% which) %>%
     top_n(n = number, wt = !! wght)
 }
+```
 
+``` r
+medi_test %>% 
+  get_top_n(HCPCS_CODE, "51741", -10, lpde) %>%
+  mutate(org_name = label_outlier(NPPES_PROVIDER_FIRST_NAME, NPPES_PROVIDER_LAST_ORG_NAME)) %>% 
+  ggplot(aes(fct_reorder(org_name, lpde), lpde)) +
+  geom_col() +
+  labs(
+    title = str_c("Top 10 outliers for providers in ", 
+                  medi_test %>% 
+                  filter(HCPCS_CODE %in% "51741") %>%
+                  pull(HCPCS_DESCRIPTION) %>% 
+                  unique()
+            ),
+    x = ""
+  ) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0, size = 7))
+```
+
+![](medicare_anomaly_detection_files/figure-markdown_github/unnamed-chunk-11-1.png)
+
+``` r
+medi_test %>% 
+  get_top_n(HCPCS_CODE, "10060", 10, rkof) %>%
+  mutate(org_name = label_outlier(NPPES_PROVIDER_FIRST_NAME, NPPES_PROVIDER_LAST_ORG_NAME)) %>% 
+  ggplot(aes(fct_reorder(org_name, -rkof), rkof)) +
+  geom_col() +
+  labs(
+    title = str_c("Top 10 outliers for providers in ", 
+                  medi_test %>% 
+                  filter(HCPCS_CODE %in% "10060") %>%
+                  pull(HCPCS_DESCRIPTION) %>% 
+                  unique()
+            ),
+    x = ""
+  ) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0, size = 7))
+```
+
+![](medicare_anomaly_detection_files/figure-markdown_github/unnamed-chunk-11-2.png)
+
+#### By the two most relevant variables
+
+-   `LINE_SRVC_CNT` - for practitioners with excessively high number of treatments
+-   `AVERAGE_SUBMITTED_CHRG_AMT` - for practioners who might be over-billing for the treatment category compared to others
+
+Therefore, these two variables were chosen for the visualization although the actual scores computed take into account all 5 variables ().
+
+The plots below show the top 30 outliers, 5 of which are labelled, as indicated by:
+
+-   local parametric density estimate (LPDE) - for `HCPCS_CODE` 51741
+-   robust kernel density factor (RKOF) - for `HCPCS_CODE` 10060
+
+As can be seen, the algorithms seemed to have done a fairly good job of identifying the outliers.
+
+``` r
 medi_test %>% 
   filter(HCPCS_CODE %in% "51741") %>% 
   ggplot(aes(LINE_SRVC_CNT, AVERAGE_MEDICARE_PAYMENT_AMT)) +
@@ -267,7 +319,7 @@ medi_test %>%
   theme_bw()
 ```
 
-![](medicare_anomaly_detection_files/figure-markdown_github/unnamed-chunk-10-1.png)
+![](medicare_anomaly_detection_files/figure-markdown_github/unnamed-chunk-12-1.png)
 
 ``` r
 medi_test %>% 
@@ -304,7 +356,7 @@ medi_test %>%
   theme_bw()
 ```
 
-![](medicare_anomaly_detection_files/figure-markdown_github/unnamed-chunk-10-2.png)
+![](medicare_anomaly_detection_files/figure-markdown_github/unnamed-chunk-12-2.png)
 
 Possible Application
 --------------------
