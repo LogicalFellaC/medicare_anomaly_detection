@@ -30,13 +30,10 @@ file_detailed_rds <- "C:/Users/logicalfellac/Downloads/Medicare_Provider_Util_Pa
 
 As a part of a series called _Medicare Unmasked_, which won Pulitzer Prize for Investigative Reportings, the journalists at Wall Stree Journal (WSJ) explored unusual doctor billings [_Taxpayers Face Big Tab For Unusual Doctor Billings_](http://www.pulitzer.org/files/2015/investigative-reporting/wsjmedicare/01wsjmedicare2015.pdf), 2014 Jun 10.
 
-As a part of a project for Stanford's Data Challenge Lab, I previously explored unusual
-billings by picking out key variables and creating new ones from which subsetting
-criteria were created manually.
+The motivation for this project is to use unsuprvised anomaly detection algorithms to
+extend the idea further and achieve the following:
 
-The goal of this project is to use unsuprvised anomaly detection algorithms to:
-
-+ Expedite the process without relying on arbitrary thresholds.
++ Expedite the process of detecting outliers without relying on arbitrary thresholds.
 + Better detect higher-dimensional outliers (2D and above).
 + Establishing a standard that is highly scalable.
 
@@ -69,10 +66,7 @@ medicare <- read_rds(file_detailed_rds)
 
 ### Checking for data quality
 
-This part of the section is masked from public viewing for confidentiality 
-purpose.
-
-Below are some of the steps taken:
+Below are some of the steps taken to ensure the quality of the data:
 
 + Check for NA's and investigate the reasons for the missing values.
 + Check for duplicates.
