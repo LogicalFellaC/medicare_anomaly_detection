@@ -1,7 +1,7 @@
 Medicare Billings Anomaly Detection Project Description
 ================
 Christopher Oh
-2017-12-18
+2019-04-18
 
 ### Goal
 
@@ -9,12 +9,7 @@ Use Medicare billings data (over 9 million data points) to build an anomaly dete
 
 ### Algorithm
 
-Local density-based outlier scores - LOF, LDF, RKOF, LPDF
-
-### Advantages
-
--   Automated generation of outlier metrics that do not depend on arbitrary criteria.
--   Easily scalable.
+Local density-based outlier scores that are easily scalable. - LOF, LDF, RKOF, LPDF
 
 ### Possible usage
 

@@ -1,7 +1,7 @@
 ---
 title: "Medicare Billings Anomaly Detection Project Description"
 author: "Christopher Oh"
-date: 2017-12-18
+date: 2019-04-18
 output: 
   github_document
 ---
@@ -13,13 +13,9 @@ detection algorithm using unsupervised learning methods.
 
 ### Algorithm
 
-Local density-based outlier scores
+Local density-based outlier scores that are easily scalable.
   - LOF, LDF, RKOF, LPDF
 
-### Advantages
-
-- Automated generation of outlier metrics that do not depend on arbitrary criteria.
-- Easily scalable.
 
 ### Possible usage
 
